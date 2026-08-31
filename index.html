@@ -511,8 +511,8 @@
 
     function modeButton(mode,title,subtitle) { const active=state.verificationMode===mode; return `<button class="mode-button ${active?"selected":""}" data-mode="${mode}" type="button"><strong>${title}</strong><span>${subtitle}</span></button>`; }
     function photoControl(role,photo,label) {
-      if (photo) return `<div class="photo-preview"><img src="${photo.url}" alt="Selected ${role} photo"><label class="button button-small button-secondary">Replace photo<input data-photo="${role}" type="file" accept="image/*" capture="environment" hidden></label></div>`;
-      return `<label class="camera-zone">${icon.camera}<strong>${label}</strong><span>Camera or photo library</span><input data-photo="${role}" type="file" accept="image/*" capture="environment"></label>`;
+      if (photo) return `<div class="photo-preview"><img src="${photo.url}" alt="Selected ${role} photo"><label class="button button-small button-secondary">Replace photo<input data-photo="${role}" type="file" accept="image/*" hidden></label></div>`;
+      return `<label class="camera-zone">${icon.camera}<strong>${label}</strong><span>Camera or photo library</span><input data-photo="${role}" type="file" accept="image/*"></label>`;
     }
     function matchProduct() {
       const mfr=norm(state.manufacturer), model=norm(state.model);
