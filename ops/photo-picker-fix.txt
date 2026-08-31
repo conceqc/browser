@@ -1,0 +1,1 @@
+Remove the mobile capture hint from both photo inputs so the device presents its camera-or-photo-library chooser.

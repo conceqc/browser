@@ -1,0 +1,52 @@
+name: Fix Photo Picker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ops/photo-picker-fix.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Allow camera or photo-library selection
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          target = ' capture="environment"'
+          count = text.count(target)
+          if count != 2:
+              raise SystemExit(f'Expected exactly 2 capture attributes, found {count}.')
+          path.write_text(text.replace(target, ''), encoding='utf-8')
+          PY
+
+      - name: Validate photo inputs
+        shell: bash
+        run: |
+          test "$(grep -o 'capture="environment"' index.html | wc -l)" -eq 0
+          test "$(grep -o 'accept="image/\*"' index.html | wc -l)" -ge 2
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No photo-picker change was needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Allow camera or photo library selection"
+          git push
