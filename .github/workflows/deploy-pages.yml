@@ -8,8 +8,8 @@ on:
       - 'index.html'
       - 'manifest.webmanifest'
       - 'icon.svg'
+      - 'ops/redeploy-pages.txt'
       - '.github/workflows/deploy-pages.yml'
-      - 'ops/pages-redeploy.txt'
   workflow_dispatch:
 
 permissions:
