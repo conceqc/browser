@@ -1,5 +1,6 @@
 name: Deploy Field QC Site
 
+# GitHub Pages enabled 2026-08-31; this comment also triggers the first live deployment.
 on:
   push:
     branches:
