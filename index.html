@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#123247">
+  <meta name="description" content="Concourse E approved-product lookup and field quality-control tracking.">
+  <title>Concourse E QC</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --navy: #102f45;
+      --navy-2: #184760;
+      --blue: #1f6d91;
+      --blue-soft: #eaf4f8;
+      --ink: #17303d;
+      --muted: #637784;
+      --line: #d7e1e6;
+      --surface: #ffffff;
+      --canvas: #f3f7f9;
+      --green: #15724b;
+      --green-soft: #e9f6ef;
+      --amber: #946500;
+      --amber-soft: #fff5d8;
+      --red: #a63131;
+      --red-soft: #fdecec;
+      --shadow: 0 14px 38px rgba(16, 47, 69, .09);
+      --radius: 18px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--canvas); }
+    body { margin: 0; min-height: 100vh; background: var(--canvas); }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 0; font-size: 1.08rem; letter-spacing: -.02em; }
+    h2 { margin-bottom: .5rem; font-size: clamp(1.65rem, 4vw, 2.55rem); line-height: 1.06; letter-spacing: -.04em; }
+    h3 { margin-bottom: .35rem; font-size: 1.06rem; line-height: 1.25; }
+    p { color: var(--muted); line-height: 1.55; }
+    [hidden] { display: none !important; }
+
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      min-height: 72px; padding: .65rem 1rem;
+      color: white; background: linear-gradient(118deg, var(--navy), var(--navy-2));
+      box-shadow: 0 8px 28px rgba(10, 39, 57, .2);
+    }
+    .brand { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+    .brand-mark {
+      display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto;
+      border: 1px solid rgba(255,255,255,.32); border-radius: 13px;
+      font-weight: 850; letter-spacing: -.04em; background: rgba(255,255,255,.1);
+    }
+    .brand-copy { min-width: 0; }
+    .eyebrow { margin: 0 0 .25rem; color: var(--blue); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .topbar .eyebrow { color: #bcdce9; }
+    .topbar-actions { display: flex; align-items: center; gap: .55rem; }
+    .connection-badge {
+      display: none; align-items: center; gap: .4rem; padding: .45rem .7rem;
+      border: 1px solid rgba(255,255,255,.2); border-radius: 999px;
+      color: #e9f4f8; font-size: .78rem; font-weight: 700; background: rgba(255,255,255,.08);
+    }
+    .status-dot { width: .5rem; height: .5rem; border-radius: 999px; background: #efc15a; box-shadow: 0 0 0 4px rgba(239,193,90,.12); }
+    .connection-live .status-dot { background: #65d6a3; box-shadow: 0 0 0 4px rgba(101,214,163,.12); }
+    .connection-error .status-dot { background: #ff8e8e; box-shadow: 0 0 0 4px rgba(255,142,142,.12); }
+    .inspector-button {
+      display: flex; align-items: center; gap: .55rem; min-height: 46px; padding: .35rem .65rem .35rem .35rem;
+      border: 1px solid rgba(255,255,255,.2); border-radius: 14px; color: white; background: rgba(255,255,255,.08);
+    }
+    .avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; color: var(--navy); background: white; font-size: .75rem; font-weight: 850; }
+    .inspector-copy { display: none; text-align: left; }
+    .inspector-copy span { display: block; color: #bcdce9; font-size: .67rem; }
+    .inspector-copy strong { display: block; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; }
+
+    .sidebar { display: none; }
+    .main-content { width: min(1180px, 100%); margin: 0 auto; padding: 1.2rem 1rem 6.5rem; outline: none; }
+    .bottom-nav {
+      position: fixed; z-index: 35; left: .75rem; right: .75rem; bottom: max(.75rem, env(safe-area-inset-bottom));
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: .25rem;
+      padding: .4rem; border: 1px solid rgba(19,48,64,.09); border-radius: 20px;
+      background: rgba(255,255,255,.96); box-shadow: 0 18px 46px rgba(16,47,69,.2); backdrop-filter: blur(15px);
+    }
+    .nav-button {
+      display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: .22rem;
+      min-height: 56px; padding: .35rem .2rem; border: 0; border-radius: 15px;
+      color: #607582; background: transparent; font-size: .68rem; font-weight: 750;
+    }
+    .nav-button.active { color: var(--blue); background: var(--blue-soft); }
+
+    .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: .4rem 0 1.1rem; }
+    .page-heading p:last-child { max-width: 760px; margin-bottom: 0; }
+    .card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .banner {
+      display: flex; gap: .75rem; align-items: flex-start; margin-bottom: 1rem; padding: .9rem 1rem;
+      border: 1px solid #f0d58d; border-radius: 15px; background: #fff9e9;
+    }
+    .banner svg { flex: 0 0 auto; color: var(--amber); }
+    .banner strong, .banner span { display: block; }
+    .banner span { color: #6d6250; font-size: .88rem; line-height: 1.45; }
+
+    .mode-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; margin-bottom: 1rem; }
+    .mode-button {
+      min-height: 72px; padding: .7rem .55rem; border: 1px solid var(--line); border-radius: 15px;
+      color: var(--ink); background: white; text-align: left;
+    }
+    .mode-button strong, .mode-button span { display: block; }
+    .mode-button strong { font-size: .85rem; }
+    .mode-button span { margin-top: .2rem; color: var(--muted); font-size: .68rem; }
+    .mode-button.selected { border-color: var(--blue); outline: 3px solid rgba(31,109,145,.1); background: var(--blue-soft); }
+
+    .workflow-grid { display: grid; gap: 1rem; }
+    .workflow-card { padding: 1rem; }
+    .step-heading { display: flex; align-items: flex-start; gap: .7rem; margin-bottom: .9rem; }
+    .step-number { display: grid; place-items: center; width: 29px; height: 29px; flex: 0 0 auto; border-radius: 10px; color: white; background: var(--blue); font-size: .78rem; font-weight: 850; }
+    .step-heading p { margin-bottom: 0; font-size: .84rem; }
+    .camera-zone {
+      position: relative; display: grid; place-items: center; min-height: 190px; padding: 1rem;
+      border: 1.5px dashed #a8bdc8; border-radius: 16px; color: var(--blue); background: #f7fbfc; text-align: center;
+    }
+    .camera-zone:hover { border-color: var(--blue); background: var(--blue-soft); }
+    .camera-zone svg { width: 2rem; height: 2rem; margin-bottom: .5rem; }
+    .camera-zone strong, .camera-zone span { display: block; }
+    .camera-zone span { margin-top: .25rem; color: var(--muted); font-size: .78rem; }
+    .camera-zone input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .photo-preview { position: relative; min-height: 190px; overflow: hidden; border-radius: 16px; background: #dce7ec; }
+    .photo-preview img { display: block; width: 100%; height: 230px; object-fit: cover; }
+    .photo-preview label { position: absolute; right: .65rem; bottom: .65rem; }
+    .field-label { display: block; margin: .85rem 0 .35rem; color: #415761; font-size: .76rem; font-weight: 800; }
+    .text-input, .select-input, .history-input, .history-select {
+      width: 100%; min-height: 48px; padding: .7rem .8rem; border: 1px solid #bfd0d8; border-radius: 12px;
+      color: var(--ink); background: white; outline: none;
+    }
+    .text-input:focus, .select-input:focus, .history-input:focus, .history-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(31,109,145,.11); }
+    .form-grid { display: grid; gap: .8rem; }
+    .button-row { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; margin-top: 1rem; }
+    .button {
+      display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 46px; padding: .68rem .9rem;
+      border: 1px solid transparent; border-radius: 12px; font-weight: 800;
+    }
+    .button:disabled { opacity: .48; cursor: not-allowed; }
+    .button-primary { color: white; background: var(--blue); }
+    .button-primary:hover:not(:disabled) { background: #185c7b; }
+    .button-secondary { border-color: #b9ccd5; color: var(--navy); background: white; }
+    .button-secondary:hover { background: var(--blue-soft); }
+    .button-quiet { color: var(--muted); background: transparent; }
+    .button-full { width: 100%; }
+    .button-small { min-height: 38px; padding: .45rem .7rem; font-size: .78rem; }
+    .save-note { color: var(--muted); font-size: .78rem; }
+
+    .verification-result { display: grid; grid-template-columns: auto 1fr; gap: .9rem; margin-top: 1rem; padding: 1rem; border-radius: var(--radius); border: 1px solid var(--line); }
+    .verification-result.match { border-color: #9bd0b7; background: var(--green-soft); }
+    .verification-result.review { border-color: #efd280; background: var(--amber-soft); }
+    .verification-result.fail { border-color: #e7abab; background: var(--red-soft); }
+    .verification-result.neutral { background: white; }
+    .result-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: rgba(255,255,255,.72); }
+    .result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin-top: .8rem; }
+    .result-grid div { padding: .7rem; border-radius: 12px; background: rgba(255,255,255,.65); }
+    .result-grid span, .result-grid strong { display: block; }
+    .result-grid span { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; }
+    .result-grid strong { margin-top: .2rem; overflow-wrap: anywhere; font-size: .84rem; }
+
+    .search-panel { display: flex; flex-direction: column; gap: .7rem; margin-bottom: 1rem; padding: .8rem; }
+    .search-field { position: relative; flex: 1; }
+    .search-field svg { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: #6b818c; }
+    .search-field input { width: 100%; min-height: 48px; padding: .7rem .8rem .7rem 2.65rem; border: 1px solid #bfd0d8; border-radius: 12px; outline: none; }
+    .result-count { align-self: center; color: var(--muted); font-size: .78rem; font-weight: 750; }
+    .product-grid, .equipment-list, .metric-grid { display: grid; gap: .8rem; }
+    .product-card, .equipment-card, .metric-card { padding: 1rem; }
+    .product-card-top, .equipment-title-row, .metric-top, .section-heading { display: flex; align-items: center; justify-content: space-between; gap: .7rem; }
+    .status-pill { display: inline-flex; align-items: center; padding: .3rem .55rem; border-radius: 999px; font-size: .66rem; font-weight: 850; text-transform: uppercase; letter-spacing: .05em; }
+    .status-match { color: var(--green); background: var(--green-soft); }
+    .status-review { color: var(--amber); background: var(--amber-soft); }
+    .status-fail { color: var(--red); background: var(--red-soft); }
+    .status-neutral { color: #526873; background: #edf2f4; }
+    .product-category { color: var(--muted); font-size: .72rem; }
+    .product-card h3 { margin: .8rem 0 .15rem; }
+    .model-number { margin-bottom: .3rem; color: var(--navy); font-weight: 850; }
+    .product-name { margin-bottom: .7rem; font-size: .86rem; }
+    .field-note { margin: .7rem 0 0; padding: .7rem; border-left: 3px solid var(--blue); border-radius: 0 10px 10px 0; background: #f5f9fa; font-size: .78rem; }
+    .product-footer { display: flex; justify-content: space-between; gap: .7rem; align-items: center; margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .72rem; }
+    .icon-button { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 11px; color: var(--blue); background: white; }
+    .equipment-card h3 { margin: .55rem 0 .18rem; }
+    .equipment-card p { margin-bottom: 0; font-size: .82rem; }
+    .progress-ring {
+      --value: 0; display: grid; place-items: center; width: 72px; height: 72px; flex: 0 0 auto; border-radius: 50%;
+      background: conic-gradient(var(--blue) calc(var(--value) * 1%), #e3ebef 0); position: relative;
+    }
+    .progress-ring::before { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: white; }
+    .progress-ring span { position: relative; font-size: .8rem; font-weight: 850; }
+    .linear-progress { height: 8px; overflow: hidden; margin-top: .8rem; border-radius: 999px; background: #e5edf1; }
+    .linear-progress span { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+    .equipment-stats { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem 1rem; margin-top: .75rem; color: var(--muted); font-size: .75rem; }
+    .equipment-stats button { margin-left: auto; }
+
+    .back-button { margin-bottom: .8rem; border: 0; color: var(--blue); background: transparent; font-weight: 800; }
+    .equipment-hero, .progress-hero { display: grid; gap: 1rem; align-items: center; padding: 1rem; }
+    .project-ring { --value: 0; width: 135px; height: 135px; margin: 0 auto; }
+    .project-ring::before { inset: 12px; }
+    .project-ring span { font-size: 1.55rem; }
+    .project-ring small { position: absolute; z-index: 1; margin-top: 2.2rem; color: var(--muted); font-size: .68rem; }
+    .project-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; margin-top: .8rem; }
+    .project-stat-row div { padding: .65rem; border-radius: 12px; background: #f4f8fa; }
+    .project-stat-row strong, .project-stat-row span { display: block; }
+    .project-stat-row strong { font-size: 1.15rem; }
+    .project-stat-row span { color: var(--muted); font-size: .66rem; }
+    .section-heading { margin: 1.25rem 0 .7rem; }
+    .section-heading h3 { margin-bottom: 0; }
+    .checklist-list { display: grid; gap: .55rem; }
+    .checklist-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .7rem; width: 100%; padding: .8rem; border: 1px solid var(--line); border-radius: 14px; background: white; text-align: left; }
+    .checklist-status { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; }
+    .checklist-copy strong, .checklist-copy small { display: block; }
+    .checklist-copy small { margin-top: .18rem; color: var(--muted); font-size: .7rem; }
+    .metric-card p { margin: .55rem 0 0; font-size: .78rem; }
+
+    .history-card { display: grid; gap: .8rem; margin-top: 1rem; padding: 1rem; border: 1px solid #b9ced8; background: linear-gradient(135deg, white, #eef7fa); }
+    .history-card-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 15px; color: white; background: var(--navy); }
+    .history-card p { margin-bottom: 0; font-size: .84rem; }
+
+    .empty-state { padding: 2rem 1rem; text-align: center; }
+    .empty-state svg { width: 2rem; height: 2rem; color: #91a8b3; }
+    .empty-state p { max-width: 520px; margin: .4rem auto 0; }
+    .error-state { border-color: #e7abab; background: var(--red-soft); }
+
+    dialog { width: min(680px, calc(100% - 1.2rem)); max-height: calc(100vh - 1.2rem); padding: 0; overflow: hidden; border: 0; border-radius: 22px; box-shadow: 0 28px 80px rgba(8,31,45,.34); }
+    dialog::backdrop { background: rgba(9,31,44,.6); backdrop-filter: blur(4px); }
+    .dialog-shell { padding: 1.1rem; overflow: auto; max-height: calc(100vh - 1.2rem); }
+    .dialog-header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1rem; }
+    .dialog-close { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 12px; background: white; font-size: 1.25rem; }
+    .dialog-help { font-size: .86rem; }
+    .inline-error { margin: .55rem 0; color: var(--red); font-size: .8rem; font-weight: 750; }
+    .history-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: .55rem; margin-bottom: .8rem; }
+    .history-summary div { padding: .7rem; border-radius: 13px; background: #f1f6f8; }
+    .history-summary strong, .history-summary span { display: block; }
+    .history-summary strong { font-size: 1.2rem; }
+    .history-summary span { color: var(--muted); font-size: .67rem; }
+    .history-toolbar { display: grid; gap: .55rem; margin-bottom: .8rem; }
+    .history-list { display: grid; gap: .7rem; }
+    .history-record { padding: .85rem; border: 1px solid var(--line); border-radius: 15px; background: white; }
+    .history-record-header { display: flex; justify-content: space-between; gap: .6rem; align-items: center; margin-bottom: .65rem; }
+    .history-record-header time { color: var(--muted); font-size: .69rem; text-align: right; }
+    .history-record-grid { display: grid; gap: .5rem; }
+    .history-record-grid div { padding: .6rem; border-radius: 11px; background: #f5f8fa; }
+    .history-record-grid span, .history-record-grid strong, .history-record-grid small { display: block; }
+    .history-record-grid span { color: var(--muted); font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; }
+    .history-record-grid strong { margin-top: .15rem; font-size: .78rem; overflow-wrap: anywhere; }
+    .history-record-grid small { margin-top: .1rem; color: var(--muted); font-size: .68rem; }
+    .history-photo-strip { display: flex; gap: .5rem; overflow-x: auto; padding: .55rem 0 .1rem; }
+    .history-photo { display: block; width: 116px; flex: 0 0 auto; color: var(--ink); text-decoration: none; }
+    .history-photo img { display: block; width: 116px; height: 92px; object-fit: cover; border-radius: 11px; background: #dce7ec; }
+    .history-photo small { display: block; margin-top: .25rem; color: var(--muted); font-size: .65rem; text-transform: capitalize; }
+    .spinner { width: 30px; height: 30px; border: 3px solid #d5e1e7; border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-panel { display: grid; justify-items: center; gap: .6rem; padding: 2rem 1rem; text-align: center; }
+
+    .toast-region { position: fixed; z-index: 100; left: 1rem; right: 1rem; bottom: 5.8rem; display: grid; justify-items: center; pointer-events: none; }
+    .toast { max-width: 520px; padding: .75rem 1rem; border-radius: 13px; color: white; background: var(--navy); box-shadow: 0 18px 50px rgba(8,31,45,.28); font-size: .82rem; font-weight: 750; }
+
+    @media (min-width: 700px) {
+      .connection-badge, .inspector-copy { display: flex; }
+      .inspector-copy { flex-direction: column; }
+      .main-content { padding: 1.6rem 1.4rem 7rem; }
+      .workflow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .workflow-card-wide { grid-column: 1 / -1; }
+      .form-grid, .history-record-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .search-panel { flex-direction: row; align-items: center; }
+      .product-grid, .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .equipment-hero, .progress-hero { grid-template-columns: auto 1fr; padding: 1.25rem; }
+      .history-card { grid-template-columns: auto 1fr auto; align-items: center; }
+      .history-toolbar { grid-template-columns: minmax(180px, 1fr) 170px 170px auto; align-items: center; }
+    }
+
+    @media (min-width: 1040px) {
+      .app-shell { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 76px 1fr; }
+      .topbar { grid-column: 1 / -1; padding: .75rem 1.25rem; }
+      .sidebar { display: flex; position: sticky; top: 76px; height: calc(100vh - 76px); flex-direction: column; justify-content: space-between; padding: 1rem .75rem; border-right: 1px solid var(--line); background: white; }
+      .sidebar-nav { display: grid; gap: .35rem; }
+      .sidebar .nav-button { flex-direction: row; justify-content: flex-start; gap: .7rem; min-height: 48px; padding: .65rem .8rem; font-size: .82rem; }
+      .sidebar-footer { padding: .75rem; color: var(--muted); font-size: .72rem; }
+      .sidebar-footer strong, .sidebar-footer span { display: block; }
+      .main-content { width: min(1220px, 100%); padding: 2rem 2rem 4rem; }
+      .bottom-nav { display: none; }
+      .workflow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .toast-region { bottom: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">QC</div>
+        <div class="brand-copy">
+          <p class="eyebrow">HJAIA · Concourse E</p>
+          <h1>Field Quality Control</h1>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span id="connectionBadge" class="connection-badge"><span class="status-dot"></span><span id="connectionText">Connecting</span></span>
+        <button id="inspectorButton" class="inspector-button" type="button">
+          <span id="inspectorAvatar" class="avatar">?</span>
+          <span class="inspector-copy"><span>Inspector</span><strong id="inspectorName">Enter name</strong></span>
+        </button>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <nav class="sidebar-nav" aria-label="Primary navigation">
+        <button class="nav-button active" data-page="verify" type="button">✓ <span>Verify</span></button>
+        <button class="nav-button" data-page="equipment" type="button">▤ <span>Equipment</span></button>
+        <button class="nav-button" data-page="products" type="button">◇ <span>Approved Products</span></button>
+        <button class="nav-button" data-page="progress" type="button">▥ <span>Progress</span></button>
+      </nav>
+      <div class="sidebar-footer"><strong>Project 250104</strong><span>Phase 01</span></div>
+    </aside>
+
+    <main id="view" class="main-content" tabindex="-1"></main>
+
+    <nav class="bottom-nav" aria-label="Primary navigation">
+      <button class="nav-button active" data-page="verify" type="button">✓<span>Verify</span></button>
+      <button class="nav-button" data-page="equipment" type="button">▤<span>Equipment</span></button>
+      <button class="nav-button" data-page="products" type="button">◇<span>Products</span></button>
+      <button class="nav-button" data-page="progress" type="button">▥<span>Progress</span></button>
+    </nav>
+  </div>
+
+  <dialog id="inspectorDialog">
+    <form id="inspectorForm" class="dialog-shell">
+      <div class="dialog-header"><div><p class="eyebrow">No account required</p><h2>Who is performing this check?</h2></div></div>
+      <p class="dialog-help">Your name is stored on this device and attached to future QC records. You can change it from the header.</p>
+      <label class="field-label" for="inspectorInput">Inspector name</label>
+      <input id="inspectorInput" class="text-input" type="text" minlength="2" maxlength="100" autocomplete="name" placeholder="First and last name" required>
+      <p id="inspectorError" class="inline-error" hidden>Enter at least two characters.</p>
+      <div class="button-row"><button class="button button-primary button-full" type="submit">Continue</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="historyDialog">
+    <div class="dialog-shell">
+      <div class="dialog-header">
+        <div><p class="eyebrow">QC manager review</p><h2>Verification history</h2><p>Double-check who marked work complete and review the supporting evidence.</p></div>
+        <button id="historyClose" class="dialog-close" type="button" aria-label="Close history">×</button>
+      </div>
+      <div id="historyContent"></div>
+    </div>
+  </dialog>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite"></div>
+
+  <script>
+    const CONFIG = {
+      supabaseUrl: "https://kwahzlezpitvurnjljew.supabase.co",
+      publishableKey: "sb_publishable_AbR8XgGYwuRpn3RSpkn82g_lYCTM4Up",
+      projectCode: "250104",
+      historyEndpoint: "https://kwahzlezpitvurnjljew.supabase.co/functions/v1/qc-history",
+      verificationEndpoint: ""
+    };
+
+    const icon = {
+      search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 5 5"></path></svg>',
+      camera: '<svg viewBox="0 0 24 24"><path d="M4 7h4l1.5-2h5L16 7h4v12H4z"></path><circle cx="12" cy="13" r="4"></circle></svg>',
+      alert: '<svg viewBox="0 0 24 24"><path d="M12 3 2.5 20h19z"></path><path d="M12 9v5M12 17.5v.1"></path></svg>',
+      check: '<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg>',
+      history: '<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"></path><path d="M8 8h8M8 12h8M8 16h5"></path></svg>'
+    };
+
+    const state = {
+      page: "verify",
+      inspector: localStorage.getItem("qcInspectorName") || "",
+      source: "loading",
+      error: "",
+      products: [],
+      equipment: [],
+      progress: [],
+      projectProgress: null,
+      checklist: [],
+      selectedEquipmentId: "",
+      selectedRequirementId: "",
+      verificationMode: "DELIVERY",
+      manufacturer: "",
+      model: "",
+      componentPhoto: null,
+      equipmentPhoto: null,
+      result: null,
+      productSearch: "",
+      equipmentSearch: "",
+      history: { code: sessionStorage.getItem("qcManagerReviewCode") || "", records: [], search: "", result: "", mode: "", error: "" }
+    };
+
+    const view = document.getElementById("view");
+    const connectionBadge = document.getElementById("connectionBadge");
+    const connectionText = document.getElementById("connectionText");
+    const inspectorButton = document.getElementById("inspectorButton");
+    const inspectorName = document.getElementById("inspectorName");
+    const inspectorAvatar = document.getElementById("inspectorAvatar");
+    const inspectorDialog = document.getElementById("inspectorDialog");
+    const inspectorForm = document.getElementById("inspectorForm");
+    const inspectorInput = document.getElementById("inspectorInput");
+    const inspectorError = document.getElementById("inspectorError");
+    const historyDialog = document.getElementById("historyDialog");
+    const historyContent = document.getElementById("historyContent");
+    const toastRegion = document.getElementById("toastRegion");
+
+    function esc(value) {
+      return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+    function norm(value) { return String(value || "").toUpperCase().replace(/[^A-Z0-9]+/g, ""); }
+    function pct(value) { const n = Number(value); return Number.isFinite(n) ? Math.round(n) : 0; }
+    function initials(value) { return String(value || "").trim().split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]?.toUpperCase()).join("") || "?"; }
+    function dateText(value) { const d = new Date(value); return Number.isNaN(d.getTime()) ? String(value || "") : new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"}).format(d); }
+    function toast(message) { const el = document.createElement("div"); el.className = "toast"; el.textContent = message; toastRegion.append(el); setTimeout(() => el.remove(), 3600); }
+
+    async function rest(viewName, params = {}) {
+      const url = new URL(`${CONFIG.supabaseUrl}/rest/v1/${viewName}`);
+      Object.entries(params).forEach(([key,value]) => value !== undefined && value !== null && value !== "" && url.searchParams.set(key,String(value)));
+      const response = await fetch(url, { headers: { apikey: CONFIG.publishableKey, Authorization: `Bearer ${CONFIG.publishableKey}`, Accept: "application/json" } });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.message || `Database request failed (${response.status}).`);
+      return body;
+    }
+
+    async function loadInitial() {
+      try {
+        const [products,equipment,progress,projectRows] = await Promise.all([
+          rest("v_approved_product_lookup", { select:"*", order:"manufacturer.asc", limit:500 }),
+          rest("v_equipment_lookup", { select:"*", order:"equipment_tag.asc", limit:1000 }),
+          rest("v_equipment_progress", { select:"*", order:"equipment_tag.asc", limit:1000 }),
+          rest("v_project_progress", { select:"*", project_code:`eq.${CONFIG.projectCode}`, limit:1 })
+        ]);
+        state.products = products || [];
+        state.equipment = equipment || [];
+        state.progress = progress || [];
+        state.projectProgress = projectRows?.[0] || null;
+        state.source = "live";
+      } catch (error) {
+        state.source = "error";
+        state.error = error.message || "The live database could not be reached.";
+      }
+      updateHeader();
+      render();
+    }
+
+    async function loadChecklist(equipmentId) {
+      if (!equipmentId || state.source !== "live") return [];
+      try {
+        return await rest("v_public_equipment_checklist", { select:"*", equipment_id:`eq.${equipmentId}`, order:"phase.asc,display_name.asc,instance_no.asc", limit:500 });
+      } catch (error) {
+        toast(error.message || "Checklist could not be loaded.");
+        return [];
+      }
+    }
+
+    function updateHeader() {
+      inspectorName.textContent = state.inspector || "Enter name";
+      inspectorAvatar.textContent = initials(state.inspector);
+      connectionBadge.classList.remove("connection-live","connection-error");
+      if (state.source === "live") { connectionBadge.classList.add("connection-live"); connectionText.textContent = "Live"; }
+      else if (state.source === "error") { connectionBadge.classList.add("connection-error"); connectionText.textContent = "Database error"; }
+      else connectionText.textContent = "Connecting";
+    }
+
+    function pageHeader(eyebrow,title,copy) {
+      return `<section class="page-heading"><div><p class="eyebrow">${esc(eyebrow)}</p><h2>${esc(title)}</h2><p>${esc(copy)}</p></div></section>`;
+    }
+    function dataBanner() {
+      if (state.source !== "error") return "";
+      return `<div class="banner">${icon.alert}<div><strong>Live data unavailable</strong><span>${esc(state.error)} Product and progress data are hidden rather than replaced with sample records.</span></div></div>`;
+    }
+    function empty(title,copy,error=false) { return `<div class="empty-state card ${error ? "error-state" : ""}">${error ? icon.alert : icon.search}<h3>${esc(title)}</h3><p>${esc(copy)}</p></div>`; }
+
+    function renderVerify() {
+      const installed = state.verificationMode !== "DELIVERY";
+      const equipment = state.equipment.find(x => x.equipment_id === state.selectedEquipmentId);
+      const available = state.checklist.filter(x => !["COMPLETE","NOT_APPLICABLE"].includes(x.status));
+      return `${pageHeader("Field verification","Check a material or installed component","Photograph the label or enter manufacturer and model. The approved-product database makes the acceptance decision.")}
+        ${dataBanner()}
+        <section class="mode-selector">
+          ${modeButton("DELIVERY","Delivered","On site, not installed")}
+          ${modeButton("INSTALLATION","Installed","Link to equipment")}
+          ${modeButton("COMMISSIONING","Commissioning","Final verification")}
+        </section>
+        <div class="workflow-grid">
+          <section class="workflow-card card">
+            <div class="step-heading"><span class="step-number">1</span><div><h3>Product photo</h3><p>Capture the complete label or nameplate in focus.</p></div></div>
+            ${photoControl("component",state.componentPhoto,"Take product photo")}
+          </section>
+          ${installed ? `<section class="workflow-card card">
+            <div class="step-heading"><span class="step-number">2</span><div><h3>Associate equipment</h3><p>Use the equipment tag photo or select the tag manually.</p></div></div>
+            ${photoControl("equipment",state.equipmentPhoto,"Scan equipment tag")}
+            <label class="field-label" for="equipmentSelect">Equipment tag</label>
+            <select id="equipmentSelect" class="select-input"><option value="">Not selected — will not count toward completion</option>${state.equipment.map(x => `<option value="${esc(x.equipment_id)}" ${x.equipment_id===state.selectedEquipmentId?"selected":""}>${esc(x.equipment_tag)} · ${esc(x.equipment_type)}</option>`).join("")}</select>
+            ${equipment ? `<label class="field-label" for="requirementSelect">Checklist item</label><select id="requirementSelect" class="select-input"><option value="">Let the future photo service identify the component</option>${available.map(x=>`<option value="${esc(x.requirement_id)}" ${x.requirement_id===state.selectedRequirementId?"selected":""}>${esc(x.display_name)}${Number(x.instance_no)>1?` #${x.instance_no}`:""}</option>`).join("")}</select>` : ""}
+          </section>` : ""}
+          <section class="workflow-card card ${installed?"workflow-card-wide":""}">
+            <div class="step-heading"><span class="step-number">${installed?3:2}</span><div><h3>Confirm identification</h3><p>Enter the manufacturer and exact model shown on the product.</p></div></div>
+            <div class="form-grid"><div><label class="field-label" for="manufacturerInput">Manufacturer</label><input id="manufacturerInput" class="text-input" value="${esc(state.manufacturer)}" placeholder="e.g., NIBCO"></div><div><label class="field-label" for="modelInput">Model number</label><input id="modelInput" class="text-input" value="${esc(state.model)}" placeholder="e.g., LD-2000"></div></div>
+            <div class="button-row"><button id="readPhoto" class="button button-secondary" type="button" ${state.componentPhoto?"":"disabled"}>${icon.camera} Read photo</button><button id="checkApproval" class="button button-primary" type="button">${icon.search} Check approval</button><button id="resetVerify" class="button button-quiet" type="button">Reset</button></div>
+          </section>
+        </div>
+        ${state.result ? renderResult(state.result,equipment) : ""}`;
+    }
+
+    function modeButton(mode,title,subtitle) { const active=state.verificationMode===mode; return `<button class="mode-button ${active?"selected":""}" data-mode="${mode}" type="button"><strong>${title}</strong><span>${subtitle}</span></button>`; }
+    function photoControl(role,photo,label) {
+      if (photo) return `<div class="photo-preview"><img src="${photo.url}" alt="Selected ${role} photo"><label class="button button-small button-secondary">Replace photo<input data-photo="${role}" type="file" accept="image/*" capture="environment" hidden></label></div>`;
+      return `<label class="camera-zone">${icon.camera}<strong>${label}</strong><span>Camera or photo library</span><input data-photo="${role}" type="file" accept="image/*" capture="environment"></label>`;
+    }
+    function matchProduct() {
+      const mfr=norm(state.manufacturer), model=norm(state.model);
+      if (!mfr && !model) return {status:"CANNOT_IDENTIFY",matches:[]};
+      const exact=state.products.filter(p => {
+        const pm=norm(p.manufacturer), pmodel=norm(p.model);
+        const mfrOk=!mfr || pm.includes(mfr) || mfr.includes(pm);
+        return mfrOk && model && pmodel===model;
+      });
+      if (exact.length===1) return {status:"MATCH",matches:exact};
+      if (exact.length>1) return {status:"REVIEW",matches:exact};
+      const partial=state.products.filter(p => {
+        const pm=norm(p.manufacturer), pmodel=norm(p.model);
+        const mfrOk=!mfr || pm.includes(mfr) || mfr.includes(pm);
+        return mfrOk && model && (pmodel.includes(model)||model.includes(pmodel));
+      });
+      return partial.length ? {status:"REVIEW",matches:partial.slice(0,5)} : {status:"NOT_APPROVED",matches:[]};
+    }
+    function renderResult(result,equipment) {
+      const defs={MATCH:["Approved product match","match","An exact current approval was found."],REVIEW:["QC review required","review","A possible approval was found, but the model is not conclusive."],NOT_APPROVED:["Not found in current approvals","fail","Do not treat this product as approved until QC resolves it."],CANNOT_IDENTIFY:["More information needed","neutral","Enter the model number or take a clearer label photo."]};
+      const [title,tone,message]=defs[result.status]||defs.CANNOT_IDENTIFY;
+      const p=result.matches?.[0];
+      return `<section class="verification-result ${tone}"><div class="result-icon">${result.status==="MATCH"?icon.check:icon.alert}</div><div><p class="eyebrow">Approval result</p><h3>${title}</h3><p>${message}</p>${p?`<div class="result-grid"><div><span>Manufacturer</span><strong>${esc(p.manufacturer)}</strong></div><div><span>Model</span><strong>${esc(p.model||"Product family")}</strong></div><div><span>Product</span><strong>${esc(p.product_name||p.component_type||"Approved product")}</strong></div><div><span>Approval</span><strong>${esc(p.current_approval_sources||"Current")}</strong></div></div>${p.field_qc_note?`<p class="field-note"><strong>Field note:</strong> ${esc(p.field_qc_note)}</p>`:""}`:""}${equipment?`<p class="field-note">Equipment: <strong>${esc(equipment.equipment_tag)}</strong>${state.selectedRequirementId?" · selected checklist item":""}</p>`:""}<div class="button-row"><button class="button button-primary" type="button" disabled>${icon.check} ${state.verificationMode==="DELIVERY"?"Save delivered-material check":"Save verification"}</button><span class="save-note">Saving activates when the verification/photo Edge Function is connected.</span></div></div></section>`;
+    }
+
+    function renderProducts() {
+      const q=norm(state.productSearch);
+      const rows=state.products.filter(p=>!q || [p.manufacturer,p.model,p.product_name,p.component_type,p.current_approval_sources].some(v=>norm(v).includes(q)));
+      return `${pageHeader("Approved products","Search current project approvals","Search by manufacturer, model, product type, or approval package.")}${dataBanner()}<section class="search-panel card"><label class="search-field">${icon.search}<input id="productSearch" type="search" value="${esc(state.productSearch)}" placeholder="Manufacturer, model, or product"></label><span class="result-count">${rows.length} result${rows.length===1?"":"s"}</span></section><section class="product-grid">${state.source==="error"?empty("Approved products are unavailable",state.error,true):rows.length?rows.map(productCard).join(""):empty("No approved products match this search","Try the exact manufacturer or model from the label.")}</section>`;
+    }
+    function productCard(p) { return `<article class="product-card card"><div class="product-card-top"><span class="status-pill status-match">Current</span><span class="product-category">${esc(p.component_type||p.component_key||"Approved product")}</span></div><h3>${esc(p.manufacturer)}</h3><p class="model-number">${esc(p.model||"Model family")}</p><p class="product-name">${esc(p.product_name||"")}</p>${p.field_qc_note?`<p class="field-note"><strong>Field note:</strong> ${esc(p.field_qc_note)}</p>`:""}<div class="product-footer"><span>${esc(p.current_approval_sources||"Current approved submittal")}</span><button class="icon-button" data-use-product="${esc(p.product_id)}" type="button" aria-label="Use in verification">→</button></div></article>`; }
+
+    function renderEquipment() {
+      const q=norm(state.equipmentSearch), progressMap=new Map(state.progress.map(x=>[x.equipment_id,x]));
+      const rows=state.equipment.filter(x=>!q || [x.equipment_tag,x.equipment_type,x.location,x.manufacturer,x.model].some(v=>norm(v).includes(q)));
+      return `${pageHeader("Equipment QC","Find an AHU or VAV","Search an equipment tag to review its required items and verified completion.")}${dataBanner()}<section class="search-panel card"><label class="search-field">${icon.search}<input id="equipmentSearch" type="search" value="${esc(state.equipmentSearch)}" placeholder="Search equipment tag"></label><button id="scanEquipment" class="button button-secondary" type="button">${icon.camera} Scan tag</button></section><section class="equipment-list">${state.source==="error"?empty("Equipment data is unavailable",state.error,true):rows.length?rows.map(x=>equipmentCard(x,progressMap.get(x.equipment_id))).join(""):empty("No equipment tags are loaded yet","Approved AHU and VAV schedules will populate this page when received.")}</section>`;
+    }
+    function equipmentCard(x,p) { const value=pct(p?.overall_percent_complete); return `<article class="equipment-card card"><div class="equipment-title-row"><div><span class="status-pill status-neutral">${esc(x.equipment_type)}</span><h3>${esc(x.equipment_tag)}</h3><p>${esc(x.location||"Location not assigned")}</p></div><div class="progress-ring" style="--value:${value}"><span>${value}%</span></div></div><div class="linear-progress"><span style="width:${value}%"></span></div><div class="equipment-stats"><span><strong>${Number(p?.completed_items||0)}</strong> complete</span><span><strong>${Number(p?.total_required_items||0)}</strong> required</span><button class="button button-small button-secondary" data-open-equipment="${esc(x.equipment_id)}" type="button">View checklist</button></div></article>`; }
+
+    function renderEquipmentDetail() {
+      const equipment=state.equipment.find(x=>x.equipment_id===state.selectedEquipmentId), p=state.progress.find(x=>x.equipment_id===state.selectedEquipmentId);
+      if (!equipment) return renderEquipment();
+      const groups=state.checklist.reduce((m,x)=>{const key=x.phase||"INSTALLATION";(m[key]||=[]).push(x);return m;},{});
+      const value=pct(p?.overall_percent_complete);
+      return `<button id="backEquipment" class="back-button" type="button">← Equipment</button>${pageHeader(equipment.equipment_type,equipment.equipment_tag,equipment.location||"Equipment-specific QC checklist")}${dataBanner()}<section class="equipment-hero card"><div class="progress-ring project-ring" style="--value:${value}"><span>${value}%</span><small>verified</small></div><div><p class="eyebrow">Completion</p><h3>${Number(p?.completed_items||0)} of ${Number(p?.total_required_items||0)} required items complete</h3><p>Only verified installation and commissioning records count. Delivered-material checks remain separate.</p><button id="verifyEquipment" class="button button-primary" type="button">${icon.camera} Verify an item</button></div></section>${Object.entries(groups).map(([phase,items])=>`<section><div class="section-heading"><div><p class="eyebrow">${phase==="COMMISSIONING"?"Commissioning":"Installation"}</p><h3>${phase==="COMMISSIONING"?"Final commissioning checks":"Field-installed components"}</h3></div><span>${items.filter(x=>x.status==="COMPLETE").length}/${items.filter(x=>x.status!=="NOT_APPLICABLE").length}</span></div><div class="checklist-list">${items.map(checklistItem).join("")}</div></section>`).join("") || empty("Checklist pending","The approved equipment schedules will establish the tag-level checklist.")}`;
+    }
+    function checklistItem(x) { const map={COMPLETE:["Complete","status-match",icon.check],REVIEW:["Review","status-review",icon.alert],NOT_APPLICABLE:["N/A","status-neutral","—"],NOT_STARTED:["Not started","status-neutral",""]}; const [label,cls,mark]=map[x.status]||map.NOT_STARTED; return `<button class="checklist-item" data-requirement="${esc(x.requirement_id)}" type="button" ${x.status==="NOT_APPLICABLE"?"disabled":""}><span class="checklist-status ${cls}">${mark}</span><span class="checklist-copy"><strong>${esc(x.display_name)}${Number(x.instance_no)>1?` #${x.instance_no}`:""}</strong><small>${x.product_verification_required?"Photo + approved product":"Visual verification"}</small></span><span class="status-pill ${cls}">${label}</span></button>`; }
+
+    function renderProgress() {
+      const overall=pct(state.projectProgress?.overall_percent_complete);
+      const groups=state.progress.reduce((m,x)=>{const key=x.equipment_type||"Other";if(!m[key])m[key]={type:key,completed:0,total:0,equipment:0};m[key].completed+=Number(x.completed_items||0);m[key].total+=Number(x.total_required_items||0);m[key].equipment++;return m;},{});
+      return `${pageHeader("Project dashboard","Verified QC progress","Progress is calculated from required equipment checklist items, not delivered materials alone.")}${dataBanner()}<section class="progress-hero card"><div class="progress-ring project-ring" style="--value:${overall}"><span>${overall}%</span><small>overall</small></div><div><p class="eyebrow">Project ${CONFIG.projectCode}</p><h3>${esc(state.projectProgress?.project_name||"Concourse E HVAC Units Replacement Phase 01")}</h3><div class="project-stat-row"><div><strong>${Number(state.projectProgress?.active_equipment_count||0)}</strong><span>equipment items</span></div><div><strong>${Number(state.projectProgress?.completed_items||0)}</strong><span>checks complete</span></div><div><strong>${Number(state.projectProgress?.total_required_items||0)}</strong><span>checks required</span></div></div></div></section><section class="history-card card"><div class="history-card-icon">${icon.history}</div><div><p class="eyebrow">QC manager review</p><h3>Double-check completed field verifications</h3><p>Review inspector, equipment, checklist item, product match, date, notes, and private photo evidence.</p></div><button id="openHistory" class="button button-secondary" type="button">Review history →</button></section><div class="section-heading"><div><p class="eyebrow">Breakdown</p><h3>Completion by equipment type</h3></div></div><div class="metric-grid">${state.source==="error"?empty("Progress data is unavailable",state.error,true):Object.values(groups).length?Object.values(groups).map(g=>{const value=g.total?Math.round(g.completed/g.total*100):0;return `<article class="metric-card card"><div class="metric-top"><span>${esc(g.type)}</span><strong>${value}%</strong></div><div class="linear-progress"><span style="width:${value}%"></span></div><p>${g.completed} of ${g.total} checks · ${g.equipment} equipment item${g.equipment===1?"":"s"}</p></article>`;}).join(""):empty("Progress will appear after equipment schedules are loaded","Approved schedules will establish the project completion denominator.")}</div>`;
+    }
+
+    function setPage(page) {
+      state.page=page;
+      document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
+      render(); view.focus({preventScroll:true}); window.scrollTo({top:0,behavior:"smooth"});
+    }
+    function render() {
+      if (state.page==="products") view.innerHTML=renderProducts();
+      else if (state.page==="equipment") view.innerHTML=renderEquipment();
+      else if (state.page==="equipment-detail") view.innerHTML=renderEquipmentDetail();
+      else if (state.page==="progress") view.innerHTML=renderProgress();
+      else view.innerHTML=renderVerify();
+      bindView();
+    }
+
+    function bindView() {
+      document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{state.verificationMode=b.dataset.mode;state.result=null;render();});
+      document.querySelectorAll("[data-photo]").forEach(input=>input.onchange=e=>{const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){toast("Choose an image file.");return;}const photo={file,url:URL.createObjectURL(file),name:file.name};if(input.dataset.photo==="equipment")state.equipmentPhoto=photo;else state.componentPhoto=photo;state.result=null;render();});
+      document.getElementById("manufacturerInput")?.addEventListener("input",e=>state.manufacturer=e.target.value);
+      document.getElementById("modelInput")?.addEventListener("input",e=>state.model=e.target.value);
+      document.getElementById("equipmentSelect")?.addEventListener("change",async e=>{state.selectedEquipmentId=e.target.value;state.selectedRequirementId="";state.checklist=await loadChecklist(state.selectedEquipmentId);render();});
+      document.getElementById("requirementSelect")?.addEventListener("change",e=>state.selectedRequirementId=e.target.value);
+      document.getElementById("checkApproval")?.addEventListener("click",()=>{state.result=matchProduct();render();document.querySelector(".verification-result")?.scrollIntoView({behavior:"smooth",block:"center"});});
+      document.getElementById("readPhoto")?.addEventListener("click",()=>toast("Photo OCR and AI identification will activate with the verification Edge Function. Manual lookup is live now."));
+      document.getElementById("resetVerify")?.addEventListener("click",()=>{[state.componentPhoto,state.equipmentPhoto].forEach(x=>x?.url&&URL.revokeObjectURL(x.url));Object.assign(state,{componentPhoto:null,equipmentPhoto:null,selectedEquipmentId:"",selectedRequirementId:"",checklist:[],manufacturer:"",model:"",result:null});render();});
+      document.getElementById("productSearch")?.addEventListener("input",e=>{state.productSearch=e.target.value;render();document.getElementById("productSearch")?.focus();});
+      document.querySelectorAll("[data-use-product]").forEach(b=>b.onclick=()=>{const p=state.products.find(x=>x.product_id===b.dataset.useProduct);if(!p)return;state.manufacturer=p.manufacturer||"";state.model=p.model||"";state.result={status:"MATCH",matches:[p]};setPage("verify");});
+      document.getElementById("equipmentSearch")?.addEventListener("input",e=>{state.equipmentSearch=e.target.value;render();document.getElementById("equipmentSearch")?.focus();});
+      document.getElementById("scanEquipment")?.addEventListener("click",()=>{state.verificationMode="INSTALLATION";setPage("verify");setTimeout(()=>document.querySelector('[data-photo="equipment"]')?.click(),0);});
+      document.querySelectorAll("[data-open-equipment]").forEach(b=>b.onclick=async()=>{state.selectedEquipmentId=b.dataset.openEquipment;state.checklist=await loadChecklist(state.selectedEquipmentId);state.page="equipment-detail";render();});
+      document.getElementById("backEquipment")?.addEventListener("click",()=>setPage("equipment"));
+      document.getElementById("verifyEquipment")?.addEventListener("click",()=>{state.verificationMode="INSTALLATION";setPage("verify");});
+      document.querySelectorAll("[data-requirement]").forEach(b=>b.onclick=()=>{state.selectedRequirementId=b.dataset.requirement;state.verificationMode=state.checklist.find(x=>x.requirement_id===state.selectedRequirementId)?.phase==="COMMISSIONING"?"COMMISSIONING":"INSTALLATION";setPage("verify");});
+      document.getElementById("openHistory")?.addEventListener("click",openHistory);
+    }
+
+    function renderHistoryUnlock() {
+      historyContent.innerHTML=`<section><p>Use the shared QC manager review code. Field inspectors do not need this code.</p><form id="historyUnlock"><label class="field-label" for="historyCode">QC manager review code</label><input id="historyCode" class="history-input" type="password" minlength="8" autocomplete="current-password" placeholder="Enter review code" required><p class="inline-error" ${state.history.error?"":"hidden"}>${esc(state.history.error)}</p><div class="button-row"><button class="button button-primary button-full" type="submit">Open history</button></div></form><p class="dialog-help">The code is retained only for this browser session. Inspector names and evidence are not available from the public database views.</p></section>`;
+      document.getElementById("historyUnlock").onsubmit=async e=>{e.preventDefault();const code=document.getElementById("historyCode").value.trim();if(code.length<8){state.history.error="Enter the full manager review code.";renderHistoryUnlock();return;}state.history.code=code;sessionStorage.setItem("qcManagerReviewCode",code);await loadHistory();};
+    }
+    async function openHistory() { if(!historyDialog.open)historyDialog.showModal(); if(state.history.code)await loadHistory();else renderHistoryUnlock(); }
+    async function loadHistory() {
+      historyContent.innerHTML=`<div class="loading-panel"><div class="spinner"></div><strong>Loading verification history…</strong><p>Retrieving current field records and private evidence links.</p></div>`;
+      try {
+        const response=await fetch(CONFIG.historyEndpoint,{method:"POST",headers:{"Content-Type":"application/json","x-qc-manager-code":state.history.code},body:JSON.stringify({project_code:CONFIG.projectCode,limit:250})});
+        const body=await response.json().catch(()=>null);
+        if(response.status===401||response.status===403){state.history.code="";state.history.records=[];sessionStorage.removeItem("qcManagerReviewCode");state.history.error=body?.message||"The manager review code was not accepted.";renderHistoryUnlock();return;}
+        if(!response.ok)throw new Error(body?.message||`History request failed (${response.status}).`);
+        state.history.records=Array.isArray(body?.records)?body.records:[];state.history.error="";renderHistoryList();
+      } catch(error) { state.history.error=error.message||"Verification history could not be loaded.";renderHistoryUnlock(); }
+    }
+    function historyFiltered() {
+      const q=state.history.search.trim().toUpperCase();
+      return state.history.records.filter(r=>{if(state.history.result&&r.result!==state.history.result)return false;if(state.history.mode&&r.verification_mode!==state.history.mode)return false;if(!q)return true;return [r.inspector_name,r.equipment_tag,r.equipment_type,r.requirement_name,r.component_name,r.identified_manufacturer,r.identified_model,r.matched_manufacturer,r.matched_model,r.matched_product_name,r.notes,r.result,r.verification_mode].join(" ").toUpperCase().includes(q);});
+    }
+    function renderHistoryList() {
+      const rows=historyFiltered(), attention=state.history.records.filter(r=>r.result!=="MATCH").length, photos=state.history.records.filter(r=>r.photos?.length).length;
+      historyContent.innerHTML=`<div class="history-summary"><div><strong>${state.history.records.length}</strong><span>recent checks</span></div><div><strong>${attention}</strong><span>need attention</span></div><div><strong>${photos}</strong><span>with evidence</span></div></div><div class="history-toolbar"><input id="historySearch" class="history-input" type="search" value="${esc(state.history.search)}" placeholder="Inspector, equipment, product, or note"><select id="historyResult" class="history-select"><option value="">All results</option><option value="MATCH" ${state.history.result==="MATCH"?"selected":""}>Match</option><option value="REVIEW" ${state.history.result==="REVIEW"?"selected":""}>Review</option><option value="NOT_APPROVED" ${state.history.result==="NOT_APPROVED"?"selected":""}>Not approved</option><option value="CANNOT_IDENTIFY" ${state.history.result==="CANNOT_IDENTIFY"?"selected":""}>Cannot identify</option></select><select id="historyMode" class="history-select"><option value="">All check types</option><option value="DELIVERY" ${state.history.mode==="DELIVERY"?"selected":""}>Delivered material</option><option value="INSTALLATION" ${state.history.mode==="INSTALLATION"?"selected":""}>Installation</option><option value="COMMISSIONING" ${state.history.mode==="COMMISSIONING"?"selected":""}>Commissioning</option></select><button id="historyRefresh" class="button button-secondary" type="button">Refresh</button></div><div class="history-list">${rows.length?rows.map(historyRecord).join(""):empty("No history records match","Clear the filters or refresh after field checks are submitted.")}</div><div class="button-row"><button id="historyLock" class="button button-quiet" type="button">Lock manager history</button></div>`;
+      document.getElementById("historySearch").oninput=e=>{state.history.search=e.target.value;renderHistoryList();document.getElementById("historySearch")?.focus();};
+      document.getElementById("historyResult").onchange=e=>{state.history.result=e.target.value;renderHistoryList();};
+      document.getElementById("historyMode").onchange=e=>{state.history.mode=e.target.value;renderHistoryList();};
+      document.getElementById("historyRefresh").onclick=loadHistory;
+      document.getElementById("historyLock").onclick=()=>{state.history.code="";state.history.records=[];sessionStorage.removeItem("qcManagerReviewCode");renderHistoryUnlock();};
+    }
+    function historyRecord(r) {
+      const defs={MATCH:["Match","status-match"],REVIEW:["Review","status-review"],NOT_APPROVED:["Not approved","status-fail"],CANNOT_IDENTIFY:["Cannot identify","status-neutral"]};const [label,cls]=defs[r.result]||defs.CANNOT_IDENTIFY;
+      const product=[r.matched_manufacturer,r.matched_model].filter(Boolean).join(" ")||[r.identified_manufacturer,r.identified_model].filter(Boolean).join(" ")||"Product not identified";
+      const equipment=r.equipment_tag?`${r.equipment_tag}${r.requirement_name?` · ${r.requirement_name}${Number(r.requirement_instance_no)>1?` #${r.requirement_instance_no}`:""}`:""}`:"Delivered material — no equipment association";
+      return `<article class="history-record"><div class="history-record-header"><div><span class="status-pill ${cls}">${label}</span> <span class="status-pill status-neutral">${esc(r.verification_mode||"Check")}</span></div><time>${esc(dateText(r.created_at))}</time></div><div class="history-record-grid"><div><span>Inspector</span><strong>${esc(r.inspector_name||"Not recorded")}</strong></div><div><span>Equipment / item</span><strong>${esc(equipment)}</strong></div><div><span>Product</span><strong>${esc(product)}</strong>${r.matched_product_name?`<small>${esc(r.matched_product_name)}</small>`:""}</div><div><span>Component</span><strong>${esc(r.component_name||"Not classified")}</strong></div></div>${r.notes?`<p class="field-note"><strong>Field note:</strong> ${esc(r.notes)}</p>`:""}${r.photos?.length?`<div class="history-photo-strip">${r.photos.map(p=>`<a class="history-photo" href="${esc(p.signed_url)}" target="_blank" rel="noopener"><img src="${esc(p.signed_url)}" alt="QC evidence" loading="lazy"><small>${esc(String(p.photo_role||"Evidence").replaceAll("_"," "))}</small></a>`).join("")}</div>`:`<p class="dialog-help">No photo evidence attached.</p>`}</article>`;
+    }
+
+    inspectorButton.onclick=()=>{inspectorInput.value=state.inspector;inspectorError.hidden=true;inspectorDialog.showModal();setTimeout(()=>inspectorInput.focus(),0);};
+    inspectorForm.onsubmit=e=>{e.preventDefault();const value=inspectorInput.value.trim();if(value.length<2){inspectorError.hidden=false;return;}state.inspector=value;localStorage.setItem("qcInspectorName",value);updateHeader();inspectorDialog.close();toast(`Inspector set to ${value}.`);};
+    inspectorDialog.oncancel=e=>{if(!state.inspector)e.preventDefault();};
+    document.getElementById("historyClose").onclick=()=>historyDialog.close();
+    historyDialog.onclick=e=>{if(e.target===historyDialog)historyDialog.close();};
+    document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>setPage(b.dataset.page));
+    window.addEventListener("online",()=>toast("Network connection restored."));
+    window.addEventListener("offline",()=>toast("You are offline. Previously loaded screen data remains visible."));
+
+    updateHeader();
+    if(!state.inspector){inspectorDialog.showModal();setTimeout(()=>inspectorInput.focus(),0);}
+    render();
+    loadInitial();
+  </script>
+</body>
+</html>
