@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Concourse E QC</title>
+  <rect width="512" height="512" rx="112" fill="#123247"/>
+  <path d="M116 128h280v256H116z" fill="#fff" opacity=".1"/>
+  <path d="M164 188h184M164 256h116M164 324h84" fill="none" stroke="#c5e4ef" stroke-width="28" stroke-linecap="round"/>
+  <path d="m300 306 34 34 70-86" fill="none" stroke="#6cdbab" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="256" y="115" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="700">QC</text>
+</svg>
