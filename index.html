@@ -362,7 +362,7 @@
       publishableKey: "sb_publishable_AbR8XgGYwuRpn3RSpkn82g_lYCTM4Up",
       projectCode: "250104",
       historyEndpoint: "https://kwahzlezpitvurnjljew.supabase.co/functions/v1/qc-history",
-      verificationEndpoint: ""
+      verificationEndpoint: "https://kwahzlezpitvurnjljew.supabase.co/functions/v1/qc-vision"
     };
 
     const icon = {
@@ -390,6 +390,8 @@
       model: "",
       componentPhoto: null,
       equipmentPhoto: null,
+      readingPhoto: false,
+      aiExtraction: null,
       result: null,
       productSearch: "",
       equipmentSearch: "",
@@ -503,7 +505,7 @@
           <section class="workflow-card card ${installed?"workflow-card-wide":""}">
             <div class="step-heading"><span class="step-number">${installed?3:2}</span><div><h3>Confirm identification</h3><p>Enter the manufacturer and exact model shown on the product.</p></div></div>
             <div class="form-grid"><div><label class="field-label" for="manufacturerInput">Manufacturer</label><input id="manufacturerInput" class="text-input" value="${esc(state.manufacturer)}" placeholder="e.g., NIBCO"></div><div><label class="field-label" for="modelInput">Model number</label><input id="modelInput" class="text-input" value="${esc(state.model)}" placeholder="e.g., LD-2000"></div></div>
-            <div class="button-row"><button id="readPhoto" class="button button-secondary" type="button" ${state.componentPhoto?"":"disabled"}>${icon.camera} Read photo</button><button id="checkApproval" class="button button-primary" type="button">${icon.search} Check approval</button><button id="resetVerify" class="button button-quiet" type="button">Reset</button></div>
+            <div class="button-row"><button id="readPhoto" class="button button-secondary" type="button" ${state.componentPhoto && !state.readingPhoto?"":"disabled"}>${icon.camera} ${state.readingPhoto?"Reading photo…":"Read photo"}</button><button id="checkApproval" class="button button-primary" type="button">${icon.search} Check approval</button><button id="resetVerify" class="button button-quiet" type="button">Reset</button></div>
           </section>
         </div>
         ${state.result ? renderResult(state.result,equipment) : ""}`;
@@ -514,6 +516,105 @@
       if (photo) return `<div class="photo-preview"><img src="${photo.url}" alt="Selected ${role} photo"><label class="button button-small button-secondary">Replace photo<input data-photo="${role}" type="file" accept="image/*" hidden></label></div>`;
       return `<label class="camera-zone">${icon.camera}<strong>${label}</strong><span>Camera or photo library</span><input data-photo="${role}" type="file" accept="image/*"></label>`;
     }
+    async function preparePhotoForAi(file) {
+      const supported = ["image/jpeg","image/jpg","image/png","image/webp","image/gif"].includes(String(file.type||"").toLowerCase());
+      if (supported && file.size <= 6 * 1024 * 1024) return file;
+      if (!("createImageBitmap" in window)) {
+        if (supported && file.size <= 8 * 1024 * 1024) return file;
+        throw new Error("This photo format could not be prepared. Try a JPG/PNG image, a screenshot, or take a new photo.");
+      }
+
+      let bitmap;
+      try {
+        bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+      } catch {
+        try {
+          bitmap = await createImageBitmap(file);
+        } catch {
+          throw new Error("This photo format could not be opened. Try a JPG/PNG image, a screenshot, or take a new photo.");
+        }
+      }
+
+      const maxDimension = 2200;
+      const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) {
+        bitmap.close?.();
+        throw new Error("The browser could not prepare this photo.");
+      }
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close?.();
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.9));
+      if (!blob) throw new Error("The browser could not compress this photo.");
+      const baseName = String(file.name || "qc-photo").replace(/\.[^.]+$/, "") || "qc-photo";
+      return new File([blob], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+    }
+
+    async function readComponentPhoto() {
+      if (!state.componentPhoto?.file || state.readingPhoto) return;
+      if (!CONFIG.verificationEndpoint) {
+        toast("The AI photo-reading service has not been connected.");
+        return;
+      }
+      if (!state.inspector || state.inspector.trim().length < 2) {
+        toast("Enter the inspector name before reading a photo.");
+        inspectorButton.click();
+        return;
+      }
+
+      const sourceFile = state.componentPhoto.file;
+      state.readingPhoto = true;
+      state.result = null;
+      render();
+      let showResult = false;
+
+      try {
+        const uploadFile = await preparePhotoForAi(sourceFile);
+        const form = new FormData();
+        form.append("component_photo", uploadFile, uploadFile.name);
+        form.append("inspector_name", state.inspector);
+        form.append("project_code", CONFIG.projectCode);
+        form.append("purpose", "PRODUCT_PHOTO");
+        if (state.selectedEquipmentId) form.append("equipment_id", state.selectedEquipmentId);
+        if (state.selectedRequirementId) form.append("equipment_requirement_id", state.selectedRequirementId);
+
+        const response = await fetch(CONFIG.verificationEndpoint, {
+          method: "POST",
+          headers: { apikey: CONFIG.publishableKey },
+          body: form,
+        });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(body?.message || `Photo reading failed (${response.status}).`);
+        }
+
+        state.manufacturer = String(body?.identified_manufacturer || "");
+        state.model = String(body?.identified_model || "");
+        state.aiExtraction = body?.ai_extraction || null;
+        state.result = {
+          status: body?.status || "CANNOT_IDENTIFY",
+          matches: Array.isArray(body?.matches) ? body.matches : [],
+          message: body?.message || "",
+          ai_confidence: body?.ai_confidence,
+          ai_extraction: body?.ai_extraction || null,
+          request_id: body?.request_id || null,
+        };
+        showResult = true;
+      } catch (error) {
+        toast(error?.message || "The photo could not be read.");
+      } finally {
+        state.readingPhoto = false;
+        render();
+        if (showResult) {
+          setTimeout(() => document.querySelector(".verification-result")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+        }
+      }
+    }
+
     function matchProduct() {
       const mfr=norm(state.manufacturer), model=norm(state.model);
       if (!mfr && !model) return {status:"CANNOT_IDENTIFY",matches:[]};
@@ -535,7 +636,12 @@
       const defs={MATCH:["Approved product match","match","An exact current approval was found."],REVIEW:["QC review required","review","A possible approval was found, but the model is not conclusive."],NOT_APPROVED:["Not found in current approvals","fail","Do not treat this product as approved until QC resolves it."],CANNOT_IDENTIFY:["More information needed","neutral","Enter the model number or take a clearer label photo."]};
       const [title,tone,message]=defs[result.status]||defs.CANNOT_IDENTIFY;
       const p=result.matches?.[0];
-      return `<section class="verification-result ${tone}"><div class="result-icon">${result.status==="MATCH"?icon.check:icon.alert}</div><div><p class="eyebrow">Approval result</p><h3>${title}</h3><p>${message}</p>${p?`<div class="result-grid"><div><span>Manufacturer</span><strong>${esc(p.manufacturer)}</strong></div><div><span>Model</span><strong>${esc(p.model||"Product family")}</strong></div><div><span>Product</span><strong>${esc(p.product_name||p.component_type||"Approved product")}</strong></div><div><span>Approval</span><strong>${esc(p.current_approval_sources||"Current")}</strong></div></div>${p.field_qc_note?`<p class="field-note"><strong>Field note:</strong> ${esc(p.field_qc_note)}</p>`:""}`:""}${equipment?`<p class="field-note">Equipment: <strong>${esc(equipment.equipment_tag)}</strong>${state.selectedRequirementId?" · selected checklist item":""}</p>`:""}<div class="button-row"><button class="button button-primary" type="button" disabled>${icon.check} ${state.verificationMode==="DELIVERY"?"Save delivered-material check":"Save verification"}</button><span class="save-note">Saving activates when the verification/photo Edge Function is connected.</span></div></div></section>`;
+      const ai=result.ai_extraction;
+      const aiIdentity=[ai?.manufacturer,ai?.model||ai?.series,ai?.product_type].filter(Boolean).join(" · ");
+      const aiConfidence=Number(result.ai_confidence);
+      const aiNote=ai?`<p class="field-note"><strong>Photo read:</strong> ${esc(aiIdentity||"Identification uncertain")}${Number.isFinite(aiConfidence)?` · ${Math.round(aiConfidence*100)}% confidence`:""}${ai.notes?`<br>${esc(ai.notes)}`:""}</p>`:"";
+      const resultMessage=result.message||message;
+      return `<section class="verification-result ${tone}"><div class="result-icon">${result.status==="MATCH"?icon.check:icon.alert}</div><div><p class="eyebrow">Approval result</p><h3>${title}</h3><p>${esc(resultMessage)}</p>${aiNote}${p?`<div class="result-grid"><div><span>Manufacturer</span><strong>${esc(p.manufacturer)}</strong></div><div><span>Model</span><strong>${esc(p.model||"Product family")}</strong></div><div><span>Product</span><strong>${esc(p.product_name||p.component_type||"Approved product")}</strong></div><div><span>Approval</span><strong>${esc(p.current_approval_sources||"Current")}</strong></div></div>${p.field_qc_note?`<p class="field-note"><strong>Field note:</strong> ${esc(p.field_qc_note)}</p>`:""}`:""}${equipment?`<p class="field-note">Equipment: <strong>${esc(equipment.equipment_tag)}</strong>${state.selectedRequirementId?" · selected checklist item":""}</p>`:""}<div class="button-row"><button class="button button-primary" type="button" disabled>${icon.check} ${state.verificationMode==="DELIVERY"?"Save delivered-material check":"Save verification"}</button><span class="save-note">Saving activates when the verification/photo Edge Function is connected.</span></div></div></section>`;
     }
 
     function renderProducts() {
@@ -582,15 +688,15 @@
     }
 
     function bindView() {
-      document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{state.verificationMode=b.dataset.mode;state.result=null;render();});
+      document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{state.verificationMode=b.dataset.mode;state.result=null;state.aiExtraction=null;render();});
       document.querySelectorAll("[data-photo]").forEach(input=>input.onchange=e=>{const file=e.target.files?.[0];if(!file)return;if(!file.type.startsWith("image/")){toast("Choose an image file.");return;}const photo={file,url:URL.createObjectURL(file),name:file.name};if(input.dataset.photo==="equipment")state.equipmentPhoto=photo;else state.componentPhoto=photo;state.result=null;render();});
       document.getElementById("manufacturerInput")?.addEventListener("input",e=>state.manufacturer=e.target.value);
       document.getElementById("modelInput")?.addEventListener("input",e=>state.model=e.target.value);
       document.getElementById("equipmentSelect")?.addEventListener("change",async e=>{state.selectedEquipmentId=e.target.value;state.selectedRequirementId="";state.checklist=await loadChecklist(state.selectedEquipmentId);render();});
       document.getElementById("requirementSelect")?.addEventListener("change",e=>state.selectedRequirementId=e.target.value);
       document.getElementById("checkApproval")?.addEventListener("click",()=>{state.result=matchProduct();render();document.querySelector(".verification-result")?.scrollIntoView({behavior:"smooth",block:"center"});});
-      document.getElementById("readPhoto")?.addEventListener("click",()=>toast("Photo OCR and AI identification will activate with the verification Edge Function. Manual lookup is live now."));
-      document.getElementById("resetVerify")?.addEventListener("click",()=>{[state.componentPhoto,state.equipmentPhoto].forEach(x=>x?.url&&URL.revokeObjectURL(x.url));Object.assign(state,{componentPhoto:null,equipmentPhoto:null,selectedEquipmentId:"",selectedRequirementId:"",checklist:[],manufacturer:"",model:"",result:null});render();});
+      document.getElementById("readPhoto")?.addEventListener("click",readComponentPhoto);
+      document.getElementById("resetVerify")?.addEventListener("click",()=>{[state.componentPhoto,state.equipmentPhoto].forEach(x=>x?.url&&URL.revokeObjectURL(x.url));Object.assign(state,{componentPhoto:null,equipmentPhoto:null,readingPhoto:false,aiExtraction:null,selectedEquipmentId:"",selectedRequirementId:"",checklist:[],manufacturer:"",model:"",result:null});render();});
       document.getElementById("productSearch")?.addEventListener("input",e=>{state.productSearch=e.target.value;render();document.getElementById("productSearch")?.focus();});
       document.querySelectorAll("[data-use-product]").forEach(b=>b.onclick=()=>{const p=state.products.find(x=>x.product_id===b.dataset.useProduct);if(!p)return;state.manufacturer=p.manufacturer||"";state.model=p.model||"";state.result={status:"MATCH",matches:[p]};setPage("verify");});
       document.getElementById("equipmentSearch")?.addEventListener("input",e=>{state.equipmentSearch=e.target.value;render();document.getElementById("equipmentSearch")?.focus();});
