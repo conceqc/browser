@@ -1,0 +1,45 @@
+name: Validate Field QC Site
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate manifest JSON
+        run: python -m json.tool manifest.webmanifest > /dev/null
+
+      - name: Extract and syntax-check inline JavaScript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          html = Path('index.html').read_text(encoding='utf-8')
+          scripts = re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>', html, flags=re.I | re.S)
+          if not scripts:
+              raise SystemExit('No inline JavaScript was found in index.html')
+          Path('/tmp/field-qc-inline.js').write_text('\n'.join(scripts), encoding='utf-8')
+          PY
+          node --check /tmp/field-qc-inline.js
+
+      - name: Reject server-side credentials
+        shell: bash
+        run: |
+          if grep -RIE --exclude-dir=.git --exclude='*.yml' --exclude='*.yaml' \
+            'sb_secret_|service_role|SUPABASE_DB_PASSWORD|SUPABASE_ACCESS_TOKEN|OPENAI_API_KEY|QC_MANAGER_CODE' .; then
+            echo 'A server-side credential name or secret pattern was found in the public browser repository.'
+            exit 1
+          fi
