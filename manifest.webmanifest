@@ -1,0 +1,18 @@
+{
+  "name": "Concourse E Field Quality Control",
+  "short_name": "Concourse E QC",
+  "description": "Approved-product lookup and equipment quality-control tracking for Concourse E.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f7f9",
+  "theme_color": "#123247",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
