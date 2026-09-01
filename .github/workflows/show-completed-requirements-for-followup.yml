@@ -1,0 +1,55 @@
+name: Show Completed Requirements for Follow-Up
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/show-completed-requirements-for-followup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Keep complete requirements selectable
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('verification-enhancements.js')
+          text = path.read_text(encoding='utf-8')
+          old = 'const available = state.checklist.filter((item) => !["NOT_APPLICABLE"].includes(item.status) && (item.status !== "COMPLETE" || item.requirement_id === state.selectedRequirementId));'
+          new = 'const available = state.checklist.filter((item) => item.status !== "NOT_APPLICABLE");'
+          if new not in text:
+              if old not in text:
+                  raise SystemExit('Could not find completed-requirement filter')
+              text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate browser extension
+        shell: bash
+        run: |
+          node --check verification-enhancements.js
+          grep -q 'item.status !== "NOT_APPLICABLE"' verification-enhancements.js
+
+      - name: Commit follow-up selection fix
+        shell: bash
+        run: |
+          if git diff --quiet -- verification-enhancements.js; then
+            echo "Complete checklist items are already selectable."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add verification-enhancements.js
+          git commit -m "Keep completed checklist items selectable for follow-up"
+          git push
