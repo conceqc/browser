@@ -208,7 +208,7 @@
   renderVerify = function enhancedRenderVerify() {
     const installed = state.verificationMode !== "DELIVERY";
     const equipment = state.equipment.find((item) => item.equipment_id === state.selectedEquipmentId);
-    const available = state.checklist.filter((item) => !["NOT_APPLICABLE"].includes(item.status) && (item.status !== "COMPLETE" || item.requirement_id === state.selectedRequirementId));
+    const available = state.checklist.filter((item) => item.status !== "NOT_APPLICABLE");
     return `${pageHeader("Field verification", "Check a material or installed component", "Photograph the label or enter manufacturer and model. The approved-product database makes the acceptance decision.")}
       ${dataBanner()}
       <section class="mode-selector">
