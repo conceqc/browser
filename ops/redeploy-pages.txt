@@ -1,1 +1,2 @@
 2026-08-31T18:58:00Z - Deploy AI-assisted product photo reading.
+2026-09-01T16:23:00Z - Deploy duplicate-safe verification, follow-up evidence, reinspection, and active-evidence review.
