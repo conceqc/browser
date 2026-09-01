@@ -35,6 +35,17 @@ jobs:
           PY
           node --check /tmp/field-qc-inline.js
 
+      - name: Syntax-check external JavaScript
+        run: node --check verification-enhancements.js
+
+      - name: Verify duplicate-safe workflow integration
+        shell: bash
+        run: |
+          grep -q 'verification-enhancements.js' index.html
+          grep -q 'functions/v1/qc-verification' verification-enhancements.js
+          grep -q 'Add follow-up evidence' verification-enhancements.js
+          grep -q 'Reinspect item' verification-enhancements.js
+
       - name: Reject server-side credentials
         shell: bash
         run: |
